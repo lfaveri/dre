@@ -97,10 +97,10 @@ def render_professor_view():
                         # URL padrão configurada para o deploy oficial
                         base_url_default = "https://enem-drepva.streamlit.app"
                         base_url = st.text_input(
-                            "Endereço Base do Aplicativo (Deploy ou IP Local):",
+                            "Endereço Base do Aplicativo (Deploy Oficial):",
                             value=base_url_default,
                             key=f"url_base_{q['id']}",
-                            help="URL pública onde o app está hospedado. Altere caso queira testar em rede local."
+                            help="URL pública oficial do Pré-Enem Digital MT."
                         )
                         
                         clean_base = base_url.rstrip('/')
