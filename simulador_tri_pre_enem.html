@@ -304,50 +304,23 @@ async function viewConfig(){
 
     ${draftQuestions.length < 10 ? `
     <div class="card" id="new-q-card">
-      <h2>Nova questão</h2>
-      <div class="row" style="margin-bottom:12px;">
-        <div>
-          <label>Quantidade de alternativas</label>
-          <select id="nq-num-alts" onchange="toggleAltE(this.value)">
-            <option value="4">4 Alternativas (A, B, C, D)</option>
-            <option value="5" selected>5 Alternativas (A, B, C, D, E)</option>
-          </select>
-        </div>
-        <div>
-          <label>Dificuldade (TRI)</label>
-          <select id="nq-dificuldade">
-            <option value="facil">Fácil</option>
-            <option value="medio" selected>Médio</option>
-            <option value="dificil">Difícil</option>
-          </select>
-        </div>
-      </div>
+      <h2>Nova questão (Padrão ENEM: 5 Alternativas)</h2>
       <label>Enunciado</label>
       <textarea id="nq-enunciado" placeholder="Digite o enunciado da questão..."></textarea>
       <div id="nq-alts">
-        ${['A','B','C','D'].map(l=>`
+        ${LETTERS.map(l=>`
           <div class="alt-row">
             <div class="alt-letter">${l}</div>
             <input type="text" id="nq-alt-${l}" placeholder="Alternativa ${l}">
           </div>`).join('')}
-        <div class="alt-row" id="row-alt-E">
-          <div class="alt-letter">E</div>
-          <input type="text" id="nq-alt-E" placeholder="Alternativa E">
-        </div>
       </div>
       <div class="row">
         <div>
-          <label>Alternativa correta</label>
-          <select id="nq-correta">
-            <option value="A">A</option>
-            <option value="B">B</option>
-            <option value="C">C</option>
-            <option value="D">D</option>
-            <option value="E" id="opt-correta-E">E</option>
-          </select>
+          <label>Alternativa correta (Gabarito)</label>
+          <select id="nq-correta">${LETTERS.map(l=>`<option value="${l}">${l}</option>`).join('')}</select>
         </div>
         <div>
-          <label>Dificuldade</label>
+          <label>Dificuldade (TRI)</label>
           <select id="nq-dificuldade">
             <option value="facil">Fácil</option>
             <option value="medio" selected>Médio</option>
@@ -608,10 +581,8 @@ function wireEvents(route){
   if(route==='config'){
     document.getElementById('btn-add-q')?.addEventListener('click', ()=>{
       const enunciado = document.getElementById('nq-enunciado').value.trim();
-      const numAlts = parseInt(document.getElementById('nq-num-alts').value || '5');
-      const activeLetters = numAlts === 4 ? ['A','B','C','D'] : ['A','B','C','D','E'];
-      const alts = activeLetters.map(l=>document.getElementById('nq-alt-'+l).value.trim());
-      if(!enunciado || alts.some(a=>!a)){ alert(`Preencha o enunciado e as ${numAlts} alternativas.`); return; }
+      const alts = LETTERS.map(l=>document.getElementById('nq-alt-'+l).value.trim());
+      if(!enunciado || alts.some(a=>!a)){ alert('Preencha o enunciado e as 5 alternativas (A, B, C, D e E).'); return; }
       draftQuestions.push({
         enunciado, alternativas: alts,
         correta: document.getElementById('nq-correta').value,
