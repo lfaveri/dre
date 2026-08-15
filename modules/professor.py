@@ -95,7 +95,7 @@ def render_professor_view():
                         st.markdown("#### Link de Acesso do Aluno")
                         
                         # URL padrão configurada para o deploy oficial
-                        base_url_default = "https://questions-and-anwers.streamlit.app"
+                        base_url_default = "https://enem-drepva.streamlit.app"
                         base_url = st.text_input(
                             "Endereço Base do Aplicativo (Deploy ou IP Local):",
                             value=base_url_default,
