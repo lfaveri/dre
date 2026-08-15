@@ -178,17 +178,7 @@ def render_professor_view():
                         st.divider()
 
             st.markdown("---")
-            st.markdown("#### Formulário da Nova Questão")
-
-            # Seletor de 4 ou 5 Alternativas
-            num_alts = st.radio(
-                "Escolha a Quantidade de Alternativas desta Questão:",
-                options=[4, 5],
-                index=1,
-                horizontal=True,
-                format_func=lambda x: f"📌 {x} Alternativas ({'A, B, C, D' if x==4 else 'A, B, C, D, E'})",
-                key="prof_num_alts_choice"
-            )
+            st.markdown("#### Formulário da Nova Questão (Padrão Oficial ENEM: 5 Alternativas)")
 
             with st.form("form_add_question", clear_on_submit=True):
                 question_text = st.text_area("Enunciado da Questão *", placeholder="Ex: Analise o gráfico/imagem abaixo e assinale a alternativa correta:")
@@ -224,10 +214,7 @@ def render_professor_view():
                     default_b = 0.0
                     default_a = 1.4
 
-                # Parâmetro de acerto casual padrão (0.25 para 4 opções, 0.20 para 5 opções)
-                default_c = 0.25 if num_alts == 4 else 0.20
-
-                # Seção de Calibração Avançada TRI
+                # Seção de Calibração Avançada TRI (Modelo 3PL do ENEM com 5 alternativas, c = 0.20)
                 with st.expander("⚙️ Calibração Avançada dos Parâmetros TRI (Modelo 3PL)", expanded=False):
                     st.caption("Ajuste fino dos pesos do modelo psicométrico do ENEM (opcional):")
                     col_p1, col_p2, col_p3 = st.columns(3)
@@ -236,25 +223,21 @@ def render_professor_view():
                     with col_p2:
                         param_a = st.slider("Discriminação (a):", min_value=0.5, max_value=2.5, value=float(default_a), step=0.1, help="Capacidade da questão de separar alunos com alto e baixo domínio.")
                     with col_p3:
-                        param_c = st.slider("Acerto Casual / Chute (c):", min_value=0.0, max_value=0.40, value=float(default_c), step=0.05, help="Probabilidade estimada de acerto ao acaso (1/4 = 0.25 | 1/5 = 0.20).")
+                        param_c = st.slider("Acerto Casual / Chute (c):", min_value=0.0, max_value=0.40, value=0.20, step=0.05, help="Probabilidade estimada de acerto ao acaso (1/5 = 0.20 no padrão ENEM).")
 
                 explanation = st.text_input("Explicação Pedagógica (Feedback ao Aluno pós-envio)", placeholder="Ex: Vm = ΔS / Δt")
                 
-                st.markdown(f"**Alternativas de Resposta ({num_alts} opções):**")
+                st.markdown("**Alternativas de Resposta (5 opções - A, B, C, D, E):**")
                 
                 opt_a = st.text_input("Alternativa A *", placeholder="Texto da opção A")
                 opt_b = st.text_input("Alternativa B *", placeholder="Texto da opção B")
                 opt_c = st.text_input("Alternativa C *", placeholder="Texto da opção C")
                 opt_d = st.text_input("Alternativa D *", placeholder="Texto da opção D")
-                
-                opt_e = ""
-                if num_alts == 5:
-                    opt_e = st.text_input("Alternativa E *", placeholder="Texto da opção E")
+                opt_e = st.text_input("Alternativa E *", placeholder="Texto da opção E")
 
-                available_letters = ["A", "B", "C", "D"] if num_alts == 4 else ["A", "B", "C", "D", "E"]
                 correct_letter = st.radio(
                     "Selecione a Alternativa Correta (Gabarito Oficial) *:",
-                    options=available_letters,
+                    options=["A", "B", "C", "D", "E"],
                     horizontal=True,
                     help="Indique qual letra é a resposta correta da questão."
                 )
@@ -264,17 +247,16 @@ def render_professor_view():
                 if btn_add_q:
                     if not question_text.strip():
                         st.error("Digite o enunciado da questão!")
-                    elif not opt_a.strip() or not opt_b.strip() or not opt_c.strip() or not opt_d.strip() or (num_alts == 5 and not opt_e.strip()):
-                        st.error(f"Por favor, preencha todas as {num_alts} alternativas da questão!")
+                    elif not opt_a.strip() or not opt_b.strip() or not opt_c.strip() or not opt_d.strip() or not opt_e.strip():
+                        st.error("Por favor, preencha todas as 5 alternativas (A, B, C, D e E) da questão!")
                     else:
                         options_list = [
                             {"text": opt_a.strip(), "is_correct": (correct_letter == "A")},
                             {"text": opt_b.strip(), "is_correct": (correct_letter == "B")},
                             {"text": opt_c.strip(), "is_correct": (correct_letter == "C")},
-                            {"text": opt_d.strip(), "is_correct": (correct_letter == "D")}
+                            {"text": opt_d.strip(), "is_correct": (correct_letter == "D")},
+                            {"text": opt_e.strip(), "is_correct": (correct_letter == "E")}
                         ]
-                        if num_alts == 5:
-                            options_list.append({"text": opt_e.strip(), "is_correct": (correct_letter == "E")})
 
                         # Processar imagem se foi enviada
                         image_b64_data = None
@@ -296,7 +278,7 @@ def render_professor_view():
                             param_c=param_c,
                             difficulty_level=clean_diff
                         )
-                        st.success(f"Questão de {num_alts} alternativas cadastrada e calibrada na TRI com sucesso!")
+                        st.success("Questão de 5 alternativas cadastrada e calibrada na TRI com sucesso!")
                         st.rerun()
 
     # =========================================================================
