@@ -6,10 +6,24 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 import tri_engine
 
+import os
+import shutil
+
 DB_FILE = "quiz_app.db"
+BACKUP_DIR = "backups"
 
 # Lock reentrante para serialização atômica de escritas no SQLite sob alta concorrência
 db_lock = threading.RLock()
+
+def backup_database():
+    """Cria uma cópia de segurança automática do banco de dados SQLite para prevenir qualquer perda acidental de dados."""
+    try:
+        if os.path.exists(DB_FILE) and os.path.getsize(DB_FILE) > 0:
+            os.makedirs(BACKUP_DIR, exist_ok=True)
+            backup_path = os.path.join(BACKUP_DIR, "quiz_app_backup.db")
+            shutil.copy2(DB_FILE, backup_path)
+    except Exception as e:
+        pass
 
 def get_connection():
     """
@@ -30,8 +44,9 @@ def get_connection():
     return conn
 
 def init_db():
-    """Cria todas as tabelas necessárias no banco SQLite se não existirem e aplica migrações de forma segura e atômica."""
+    """Cria todas as tabelas necessárias no banco SQLite se não existirem e aplica migrações de forma estritamente segura e não-destrutiva."""
     with db_lock:
+        backup_database()
         conn = get_connection()
         try:
             cursor = conn.cursor()
@@ -279,7 +294,74 @@ def add_question(
                 """, (question_id, opt['text'], 1 if opt.get('is_correct') else 0, idx + 1))
 
             conn.commit()
+            backup_database()
             return question_id
+        finally:
+            conn.close()
+
+def update_question(
+    question_id: int, 
+    question_text: str, 
+    points: float, 
+    explanation: str, 
+    options: List[Dict[str, Any]], 
+    image_data: Optional[str] = None,
+    keep_existing_image: bool = True,
+    param_a: float = 1.2,
+    param_b: float = 0.0,
+    param_c: float = 0.20,
+    difficulty_level: str = "Média"
+) -> bool:
+    """Atualiza uma questão existente, suas alternativas e parâmetros psicométricos TRI de forma atômica."""
+    with db_lock:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            
+            if image_data is not None:
+                cursor.execute("""
+                    UPDATE questions SET
+                        question_text = ?, points = ?, explanation = ?, image_data = ?,
+                        param_a = ?, param_b = ?, param_c = ?, difficulty_level = ?
+                    WHERE id = ?
+                """, (question_text, points, explanation, image_data, param_a, param_b, param_c, difficulty_level, question_id))
+            elif not keep_existing_image:
+                cursor.execute("""
+                    UPDATE questions SET
+                        question_text = ?, points = ?, explanation = ?, image_data = NULL,
+                        param_a = ?, param_b = ?, param_c = ?, difficulty_level = ?
+                    WHERE id = ?
+                """, (question_text, points, explanation, param_a, param_b, param_c, difficulty_level, question_id))
+            else:
+                cursor.execute("""
+                    UPDATE questions SET
+                        question_text = ?, points = ?, explanation = ?,
+                        param_a = ?, param_b = ?, param_c = ?, difficulty_level = ?
+                    WHERE id = ?
+                """, (question_text, points, explanation, param_a, param_b, param_c, difficulty_level, question_id))
+
+            # Atualiza opções (exclui anteriores e insere novas)
+            cursor.execute("DELETE FROM options WHERE question_id = ?", (question_id,))
+            for idx, opt in enumerate(options):
+                cursor.execute("""
+                    INSERT INTO options (question_id, option_text, is_correct, order_num)
+                    VALUES (?, ?, ?, ?)
+                """, (question_id, opt['text'], 1 if opt.get('is_correct') else 0, idx + 1))
+
+            conn.commit()
+            backup_database()
+            return True
+        finally:
+            conn.close()
+
+def delete_question(question_id: int):
+    """Exclui uma questão específica de forma atômica."""
+    with db_lock:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM questions WHERE id = ?", (question_id,))
+            conn.commit()
         finally:
             conn.close()
 

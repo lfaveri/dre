@@ -284,7 +284,10 @@ async function viewConfig(){
         <strong>Q${i+1}.</strong> ${escapeHtml(q.enunciado)}
         <div class="tag tag-${q.dificuldade}">${tagIcon(q.dificuldade)}${DIFF_PARAMS[q.dificuldade].label} · correta: ${q.correta}</div>
       </div>
-      <button class="btn btn-ghost btn-sm" data-remove-q="${i}">Remover</button>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-ghost btn-sm" data-edit-q="${i}">✏️ Editar</button>
+        <button class="btn btn-ghost btn-sm" data-remove-q="${i}">🗑️ Remover</button>
+      </div>
     </div>`).join('') || '<p class="empty-state">Nenhuma questão adicionada ainda.</p>';
 
   return `
@@ -594,6 +597,21 @@ function wireEvents(route){
       btn.addEventListener('click', ()=>{
         draftQuestions.splice(parseInt(btn.dataset.removeQ),1);
         render();
+      });
+    });
+    document.querySelectorAll('[data-edit-q]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const idx = parseInt(btn.dataset.editQ);
+        const q = draftQuestions[idx];
+        document.getElementById('nq-enunciado').value = q.enunciado;
+        LETTERS.forEach((l, ai)=>{
+          document.getElementById('nq-alt-'+l).value = q.alternativas[ai] || '';
+        });
+        document.getElementById('nq-correta').value = q.correta;
+        document.getElementById('nq-dificuldade').value = q.dificuldade;
+        draftQuestions.splice(idx, 1);
+        render();
+        document.getElementById('new-q-card')?.scrollIntoView({ behavior: 'smooth' });
       });
     });
     document.getElementById('btn-save-config')?.addEventListener('click', saveConfig);
