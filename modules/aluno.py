@@ -158,8 +158,12 @@ def render_aluno_view(preselected_quiz_code: str = None):
                     if q.get('image_data'):
                         st.image(q['image_data'], caption=f"Ilustração - Questão {idx}", use_container_width=True)
 
-                    # Mapeia as opções
-                    options_dict = {f"{opt['option_text']}": opt['id'] for opt in q['options']}
+                    # Mapeia as opções com suas letras (A, B, C, D, E)
+                    letters = ["A", "B", "C", "D", "E"]
+                    options_dict = {
+                        f"({letters[oi]})  {opt['option_text']}": opt['id'] 
+                        for oi, opt in enumerate(q['options'])
+                    }
                     
                     # Widget de seleção (Radio)
                     choice = st.radio(
