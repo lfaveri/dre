@@ -95,7 +95,7 @@ def render_professor_view():
                         st.markdown("#### Link de Acesso do Aluno")
                         
                         # URL padrão configurada para o deploy oficial
-                        base_url_default = "https://enem-drepva.streamlit.app"
+                        base_url_default = "https://questions-and-anwers.streamlit.app"
                         base_url = st.text_input(
                             "Endereço Base do Aplicativo (Deploy ou IP Local):",
                             value=base_url_default,
@@ -158,24 +158,137 @@ def render_professor_view():
             quiz_data = db.get_quiz_details(selected_quiz_id)
             existing_questions = quiz_data.get('questions', [])
             
-            st.markdown(f"**Questões atuais neste quiz:** {len(existing_questions)}")
+            st.markdown(f"**Questões cadastradas neste quiz:** {len(existing_questions)}")
             if existing_questions:
-                with st.expander("Ver Questões já cadastradas e Calibração TRI", expanded=False):
-                    for idx, q_item in enumerate(existing_questions, 1):
-                        diff_badge = "🟢 Fácil" if q_item.get('difficulty_level') == 'Fácil' else ("🔴 Difícil" if q_item.get('difficulty_level') == 'Difícil' else "🟡 Média")
-                        st.markdown(f"**{idx}. {q_item['question_text']}** — {diff_badge} ({q_item['points']} pts)")
+                for idx, q_item in enumerate(existing_questions, 1):
+                    diff_badge = "🟢 Fácil" if q_item.get('difficulty_level') == 'Fácil' else ("🔴 Difícil" if q_item.get('difficulty_level') == 'Difícil' else "🟡 Média")
+                    
+                    with st.expander(f"📝 Questão {idx}: {q_item['question_text'][:70]}... — {diff_badge} ({q_item['points']} pts)", expanded=False):
+                        st.markdown(f"**Enunciado Completo:** {q_item['question_text']}")
+                        st.caption(f"Parâmetros TRI: Dificuldade (b) = `{q_item.get('param_b', 0.0)}` | Discriminação (a) = `{q_item.get('param_a', 1.2)}` | Chute (c) = `{q_item.get('param_c', 0.20)}`")
                         
-                        param_info = f"Parâmetros TRI (Modelo 3PL): Dificuldade (b) = `{q_item.get('param_b', 0.0)}` | Discriminação (a) = `{q_item.get('param_a', 1.2)}` | Chute (c) = `{q_item.get('param_c', 0.25)}`"
-                        st.caption(param_info)
-
                         if q_item.get('image_data'):
-                            st.image(q_item['image_data'], caption=f"Imagem da Questão {idx}", width=320)
-                        for opt in q_item['options']:
-                            mark = "[Correta]" if opt['is_correct'] else "[Incorreta]"
-                            st.write(f"{mark} {opt['option_text']}")
-                        if q_item.get('explanation'):
-                            st.caption(f"Explicação Pedagógica: {q_item['explanation']}")
-                        st.divider()
+                            st.image(q_item['image_data'], caption=f"Imagem Ilustrativa - Questão {idx}", width=280)
+                            
+                        letters_list = ["A", "B", "C", "D", "E"]
+                        current_correct_letter = "A"
+                        for oi, opt in enumerate(q_item['options']):
+                            mark = "✅ [CORRETA]" if opt['is_correct'] else "⚪"
+                            let = letters_list[oi] if oi < len(letters_list) else "?"
+                            if opt['is_correct']:
+                                current_correct_letter = let
+                            st.write(f"**({let})** {mark} {opt['option_text']}")
+
+                        st.markdown("---")
+                        st.markdown(f"#### ✏️ Formulário de Edição da Questão {idx}")
+                        
+                        with st.form(f"form_edit_question_{q_item['id']}"):
+                            edit_text = st.text_area("Editar Enunciado *", value=q_item['question_text'])
+                            
+                            col_img1, col_img2 = st.columns([1, 1])
+                            with col_img1:
+                                remove_img = False
+                                if q_item.get('image_data'):
+                                    remove_img = st.checkbox("🗑️ Remover imagem atual desta questão", key=f"rm_img_{q_item['id']}")
+                            with col_img2:
+                                new_img_file = st.file_uploader(
+                                    "Substituir / Adicionar Imagem:",
+                                    type=["png", "jpg", "jpeg", "webp"],
+                                    key=f"upload_edit_{q_item['id']}"
+                                )
+
+                            col_e_pts, col_e_diff = st.columns(2)
+                            with col_e_pts:
+                                edit_points = st.number_input("Pontuação", min_value=0.5, max_value=100.0, value=float(q_item.get('points', 2.5)), step=0.5, key=f"pts_e_{q_item['id']}")
+                            with col_e_diff:
+                                diff_opts = ["Média", "Fácil", "Difícil"]
+                                cur_diff = q_item.get('difficulty_level', 'Média')
+                                diff_idx = diff_opts.index(cur_diff) if cur_diff in diff_opts else 0
+                                edit_diff = st.selectbox("Dificuldade Pedagógica:", diff_opts, index=diff_idx, key=f"diff_e_{q_item['id']}")
+
+                            with st.expander("⚙️ Calibração dos Parâmetros TRI (Modelo 3PL)", expanded=False):
+                                col_t1, col_t2, col_t3 = st.columns(3)
+                                with col_t1:
+                                    edit_b = st.slider("Dificuldade (b):", -3.0, 3.0, float(q_item.get('param_b', 0.0)), 0.1, key=f"b_e_{q_item['id']}")
+                                with col_t2:
+                                    edit_a = st.slider("Discriminação (a):", 0.5, 2.5, float(q_item.get('param_a', 1.2)), 0.1, key=f"a_e_{q_item['id']}")
+                                with col_t3:
+                                    edit_c = st.slider("Acerto Casual (c):", 0.0, 0.40, float(q_item.get('param_c', 0.20)), 0.05, key=f"c_e_{q_item['id']}")
+
+                            edit_expl = st.text_input("Explicação Pedagógica:", value=q_item.get('explanation', ''), key=f"expl_e_{q_item['id']}")
+                            
+                            st.markdown("**Editar Alternativas (5 opções):**")
+                            opts = q_item.get('options', [])
+                            val_a = opts[0]['option_text'] if len(opts) > 0 else ""
+                            val_b = opts[1]['option_text'] if len(opts) > 1 else ""
+                            val_c = opts[2]['option_text'] if len(opts) > 2 else ""
+                            val_d = opts[3]['option_text'] if len(opts) > 3 else ""
+                            val_e = opts[4]['option_text'] if len(opts) > 4 else ""
+
+                            e_opt_a = st.text_input("Alternativa A *", value=val_a, key=f"ea_{q_item['id']}")
+                            e_opt_b = st.text_input("Alternativa B *", value=val_b, key=f"eb_{q_item['id']}")
+                            e_opt_c = st.text_input("Alternativa C *", value=val_c, key=f"ec_{q_item['id']}")
+                            e_opt_d = st.text_input("Alternativa D *", value=val_d, key=f"ed_{q_item['id']}")
+                            e_opt_e = st.text_input("Alternativa E *", value=val_e, key=f"ee_{q_item['id']}")
+
+                            def_let_idx = letters_list.index(current_correct_letter) if current_correct_letter in letters_list else 0
+                            edit_correct_letter = st.radio(
+                                "Alternativa Correta (Gabarito Oficial) *:",
+                                options=letters_list,
+                                index=def_let_idx,
+                                horizontal=True,
+                                key=f"corr_e_{q_item['id']}"
+                            )
+
+                            btn_save_edit = st.form_submit_button("💾 Salvar Alterações da Questão", use_container_width=True, type="primary")
+
+                            if btn_save_edit:
+                                if not edit_text.strip():
+                                    st.error("O enunciado da questão não pode ficar vazio!")
+                                elif not e_opt_a.strip() or not e_opt_b.strip() or not e_opt_c.strip() or not e_opt_d.strip() or not e_opt_e.strip():
+                                    st.error("Todas as 5 alternativas (A, B, C, D e E) devem ser preenchidas!")
+                                else:
+                                    updated_options = [
+                                        {"text": e_opt_a.strip(), "is_correct": (edit_correct_letter == "A")},
+                                        {"text": e_opt_b.strip(), "is_correct": (edit_correct_letter == "B")},
+                                        {"text": e_opt_c.strip(), "is_correct": (edit_correct_letter == "C")},
+                                        {"text": e_opt_d.strip(), "is_correct": (edit_correct_letter == "D")},
+                                        {"text": e_opt_e.strip(), "is_correct": (edit_correct_letter == "E")}
+                                    ]
+
+                                    # Tratar imagem
+                                    final_img_b64 = None
+                                    keep_img = True
+                                    if new_img_file is not None:
+                                        mime_type = new_img_file.type or "image/png"
+                                        raw_b = new_img_file.read()
+                                        final_img_b64 = f"data:{mime_type};base64,{base64.b64encode(raw_b).decode('utf-8')}"
+                                        keep_img = False
+                                    elif remove_img:
+                                        final_img_b64 = None
+                                        keep_img = False
+
+                                    db.update_question(
+                                        question_id=q_item['id'],
+                                        question_text=edit_text.strip(),
+                                        points=edit_points,
+                                        explanation=edit_expl.strip(),
+                                        options=updated_options,
+                                        image_data=final_img_b64,
+                                        keep_existing_image=keep_img,
+                                        param_a=edit_a,
+                                        param_b=edit_b,
+                                        param_c=edit_c,
+                                        difficulty_level=edit_diff
+                                    )
+                                    st.success(f"Questão {idx} atualizada com sucesso!")
+                                    st.rerun()
+
+                        # Botão para exclusão individual da questão
+                        if st.button(f"🗑️ Excluir Questão {idx}", key=f"btn_del_q_{q_item['id']}", type="secondary"):
+                            db.delete_question(q_item['id'])
+                            st.success(f"Questão {idx} excluída!")
+                            st.rerun()
 
             st.markdown("---")
             st.markdown("#### Formulário da Nova Questão (Padrão Oficial ENEM: 5 Alternativas)")
